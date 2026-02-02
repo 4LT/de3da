@@ -3,7 +3,7 @@ use std::iter;
 use std::fs::File;
 use std::io::BufReader;
 use std::rc::Rc;
-use glam::{Affine3, Mat3};
+use glam::{Affine3, Mat3, Vec3};
 
 use iter::Iterator;
 
@@ -12,7 +12,7 @@ mod types;
 mod app_error;
 
 use parse::parse_model;
-use types::{Mesh, Disk};
+use types::{Mesh, Disk, };
 use app_error::AppError;
 
 
@@ -56,7 +56,7 @@ fn main() -> Result<(), AppError> {
     let node = model.body();
 
     let mut mesh = Default::default();
-    walk_body(node, Affine3::IDENTITY, &mut mesh, None);
+    walk_body(node, Affine3::IDENTITY, &mut mesh, None, None);
     println!("{mesh}");
 
     Ok(())
@@ -67,6 +67,7 @@ fn walk_body(
     mut xform: Affine3,
     mesh: &mut Mesh,
     mut prev_disk: Option<Rc<Disk>>,
+    mut prev_xformd_disk: Option<Rc<Vec<Vec3>>>,
 ) {
     if let Some(segment) = node {
         match segment.action {
@@ -98,7 +99,7 @@ fn walk_body(
                 (disk_info.shift, 0f32).into()
             );
 
-            let disk = disk_info.disk.as_ref()
+            let disk: Option<Vec<_>> = disk_info.disk.as_ref()
                 .or(prev_disk.as_ref())
                 .map(
                     |d| d.iter()
@@ -111,14 +112,28 @@ fn walk_body(
                         .collect()
                 );
 
-            if let Some(d) = disk {
-                mesh.add_disk(d);
+            if let Some(ref d) = disk {
+                if let Some(ref old_d) = prev_xformd_disk {
+                    mesh.add_loop(&old_d[..], &d[..]);
+                }
                 prev_disk = disk_info.disk.clone();
+                prev_xformd_disk = disk.map(Rc::new);
             } 
         }
 
-        walk_body(segment.left.as_deref(), xform, mesh, prev_disk.clone());
-        walk_body(segment.right.as_deref(), xform, mesh, prev_disk);
+        walk_body(
+            segment.left.as_deref(),
+            xform,
+            mesh,
+            prev_disk.clone(),
+            prev_xformd_disk.clone()
+        );
+        walk_body(
+            segment.right.as_deref(),
+            xform,
+            mesh,
+            prev_disk,
+            prev_xformd_disk
+        );
     }
 }
-

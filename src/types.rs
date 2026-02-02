@@ -226,22 +226,22 @@ pub fn body_from_raw(
     body_from_raw_rec(&raw_body[..], disk_info, 0, &mut visited)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Mesh {
     verts: Vec<Vec3>,
     indices: Vec<usize>,
-    new: bool,
 }
 
 impl Mesh {
-    pub fn add_disk(&mut self, disk: Vec<Vec3>) {
+    #[allow(dead_code)]
+    pub fn add_disk(&mut self, disk: &[Vec3]) {
         let disk_size = disk.len();
-        let start_idx = self.verts.len();
+        let new = self.verts.is_empty();
+        let start_idx = self.verts.len() - disk.len();
+
         self.verts.extend(disk);
         
-        if self.new {
-            self.new = false;
-        } else {
+        if !new {
             for idx in 0..disk_size {
                 let idx1 = idx + start_idx;
                 let idx2 = (idx + 1) % disk_size + start_idx;
@@ -251,15 +251,10 @@ impl Mesh {
             }
         }
     }
-}
 
-impl Default for Mesh {
-    fn default() -> Self {
-        Self {
-            verts: Vec::new(),
-            indices: Vec::new(),
-            new: true
-        }
+    pub fn add_loop(&mut self, start_disk: &[Vec3], end_disk: &[Vec3]) {
+        self.verts.extend(start_disk);
+        self.add_disk(end_disk);
     }
 }
 
