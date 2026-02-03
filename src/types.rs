@@ -42,7 +42,7 @@ pub mod raw {
     #[derive(Clone, Debug)]
     #[allow(dead_code)]
     pub struct BodySegment {
-        pub unknown: i32,
+        pub disk_info_idx: i32,
         pub action: i32,
         pub value: f32,
         pub color: i32,
@@ -57,7 +57,7 @@ pub mod raw {
         pub scale: Vec2,
         pub disk_idx: i32,
         pub id: i32,
-        pub unknown: i32,
+        pub flags: i32,
         pub arr1: [f32; 4],
         pub arr2: [f32; 4],
     }
@@ -86,7 +86,7 @@ pub mod cooked {
         pub scale: Vec2,
         pub disk: Option<Rc<crate::types::Disk>>,
         pub id: i32,
-        pub unknown: i32,
+        pub flags: i32,
         pub arr1: [f32; 4],
         pub arr2: [f32; 4],
     }
@@ -104,7 +104,7 @@ pub mod cooked {
                 scale: raw_info.scale,
                 disk,
                 id: raw_info.id,
-                unknown: raw_info.unknown,
+                flags: raw_info.flags,
                 arr1: raw_info.arr1,
                 arr2: raw_info.arr2,
             }
@@ -206,7 +206,7 @@ pub fn body_from_raw(
                 visited,
             ));
     
-        let disk_info_piece = usize::try_from(raw_node.unknown)
+        let disk_info_piece = usize::try_from(raw_node.disk_info_idx)
             .ok()
             .filter(|_| raw_node.action <= 1)
             .and_then(|info_idx| disk_info.get(info_idx))

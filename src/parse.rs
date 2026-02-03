@@ -171,7 +171,7 @@ pub fn parse_body(
     let mut body = Vec::with_capacity(segment_ct);
 
     for _ in 0..segment_ct {
-        let unknown = if let Some(&LineItem::Int(i)) = items.get(idx) {
+        let disk_info_idx = if let Some(&LineItem::Int(i)) = items.get(idx) {
             idx+= 1;
             i
         } else {
@@ -214,7 +214,7 @@ pub fn parse_body(
         };
 
         let segment = raw::BodySegment {
-            unknown,
+            disk_info_idx,
             action,
             value,
             color,
@@ -289,7 +289,7 @@ pub fn parse_disk_info(
             return None;
         };
 
-        let unknown = if let Some(&LineItem::Int(i)) = items.get(idx) {
+        let flags = if let Some(&LineItem::Int(i)) = items.get(idx) {
             idx+= 1;
             i
         } else {
@@ -317,7 +317,7 @@ pub fn parse_disk_info(
             scale: [scale_x, scale_y].into(),
             disk_idx,
             id,
-            unknown,
+            flags,
             arr1,
             arr2,
         });
