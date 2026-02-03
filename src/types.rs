@@ -266,7 +266,8 @@ impl Display for Mesh {
             writeln!(formatter, "v {x:.9} {z:.9} {y:.9}")?;
         }
 
-        for &[mut idx1, mut idx2, mut idx3, mut idx4]
+        // Flip faces
+        for &[mut idx1, mut idx4, mut idx3, mut idx2]
             in self.indices.as_chunks().0
         {
             idx1+= 1;
