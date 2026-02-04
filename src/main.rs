@@ -12,7 +12,7 @@ mod types;
 mod app_error;
 
 use parse::parse_model;
-use types::{Mesh, Disk, };
+use types::{Mesh, Disk, MeshMeta};
 use app_error::AppError;
 
 
@@ -56,7 +56,16 @@ fn main() -> Result<(), AppError> {
     let node = model.body();
 
     let mut mesh = Default::default();
-    walk_body(node, Affine3::IDENTITY, &mut mesh, None, None);
+
+    walk_body(
+        node,
+        model.disk_size(),
+        Affine3::IDENTITY,
+        &mut mesh,
+        None,
+        None
+    );
+
     println!("{mesh}");
 
     Ok(())
@@ -64,6 +73,7 @@ fn main() -> Result<(), AppError> {
 
 fn walk_body(
     node: Option<&types::cooked::BodySegment>,
+    disk_size: usize,
     mut xform: Affine3,
     mesh: &mut Mesh,
     mut prev_disk: Option<Rc<Disk>>,
@@ -99,8 +109,20 @@ fn walk_body(
                 (disk_info.shift, 0f32).into()
             );
 
+            let null_disk: Option<Rc<Vec<_>>> = Some(Rc::new((0..disk_size)
+                .map(|_| (Vec3::default(), -1i32))
+                .collect()));
+
+            let default_disk = || {
+                if segment.left.is_none() && segment.right.is_none() {
+                    null_disk.as_ref()
+                } else {
+                    prev_disk.as_ref()
+                }
+            };
+
             let disk: Option<Vec<_>> = disk_info.disk.as_ref()
-                .or(prev_disk.as_ref())
+                .or(default_disk())
                 .map(
                     |d| d.iter()
                         .map(|&(mut v, _)| {
@@ -114,26 +136,36 @@ fn walk_body(
 
             if let Some(ref d) = disk {
                 if let Some(ref old_d) = prev_xformd_disk {
-                    mesh.add_loop(&old_d[..], &d[..]);
+                    mesh.add_loop(
+                        &old_d[..],
+                        &d[..],
+                        Some(MeshMeta {
+                            body_idx: segment.index,
+                            disk_info_idx: disk_info.index,
+                        })
+                    );
                 }
-                prev_disk = disk_info.disk.clone();
+
                 prev_xformd_disk = disk.map(Rc::new);
+                prev_disk = disk_info.disk.clone();
             } 
         }
 
         walk_body(
             segment.left.as_deref(),
+            disk_size,
             xform,
             mesh,
             prev_disk.clone(),
-            prev_xformd_disk.clone()
+            prev_xformd_disk.clone(),
         );
         walk_body(
             segment.right.as_deref(),
+            disk_size,
             xform,
             mesh,
             prev_disk,
-            prev_xformd_disk
+            prev_xformd_disk,
         );
     }
 }

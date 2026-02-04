@@ -1,6 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use glam::Vec3;
 
@@ -82,6 +82,7 @@ pub mod cooked {
     #[derive(Clone, Debug)]
     #[allow(dead_code)]
     pub struct DiskInformation {
+        pub index: usize,
         pub shift: Vec2,
         pub scale: Vec2,
         pub disk: Option<Rc<crate::types::Disk>>,
@@ -94,12 +95,14 @@ pub mod cooked {
     impl DiskInformation {
         pub fn from_raw(
             raw_info: crate::types::raw::DiskInformation,
+            index: usize,
             disks: &[Rc<crate::types::Disk>],
         ) -> Self {
             let disk = usize::try_from(raw_info.disk_idx).ok()
                 .and_then(|idx| disks.get(idx).map(Rc::clone));
 
             Self {
+                index,
                 shift: raw_info.shift,
                 scale: raw_info.scale,
                 disk,
@@ -140,12 +143,15 @@ impl Model {
             .map(Rc::new)
             .collect();
 
-        let disk_info: Vec<_> = raw_disk_info.into_iter().map(|raw_info|
-            Rc::new(crate::types::cooked::DiskInformation::from_raw(
-                raw_info,
-                &disks[..]
-            ))
-        ).collect();
+        let disk_info: Vec<_> = raw_disk_info.into_iter()
+            .enumerate()
+            .map(|(idx, raw_info)|
+                Rc::new(crate::types::cooked::DiskInformation::from_raw(
+                    raw_info,
+                    idx,
+                    &disks[..]
+                ))
+            ).collect();
 
         let body = body_from_raw(raw_body, &disk_info[..]);
 
@@ -230,11 +236,12 @@ pub fn body_from_raw(
 pub struct Mesh {
     verts: Vec<Vec3>,
     indices: Vec<usize>,
+    meta: HashMap<usize, MeshMeta>,
 }
 
 impl Mesh {
     #[allow(dead_code)]
-    pub fn add_disk(&mut self, disk: &[Vec3]) {
+    pub fn add_disk(&mut self, disk: &[Vec3], meta: Option<MeshMeta>) {
         let disk_size = disk.len();
         let new = self.verts.is_empty();
         let start_idx = self.verts.len() - disk.len();
@@ -242,6 +249,10 @@ impl Mesh {
         self.verts.extend(disk);
         
         if !new {
+            if let Some(m) = meta {
+                self.meta.insert(self.indices.len() / 4, m);
+            }
+
             for idx in 0..disk_size {
                 let idx1 = idx + start_idx;
                 let idx2 = (idx + 1) % disk_size + start_idx;
@@ -252,9 +263,14 @@ impl Mesh {
         }
     }
 
-    pub fn add_loop(&mut self, start_disk: &[Vec3], end_disk: &[Vec3]) {
+    pub fn add_loop(
+        &mut self,
+        start_disk: &[Vec3],
+        end_disk: &[Vec3],
+        meta: Option<MeshMeta>
+    ) {
         self.verts.extend(start_disk);
-        self.add_disk(end_disk);
+        self.add_disk(end_disk, meta);
     }
 }
 
@@ -267,15 +283,39 @@ impl Display for Mesh {
         }
 
         // Flip faces
-        for &[mut idx1, mut idx4, mut idx3, mut idx2]
-            in self.indices.as_chunks().0
+        for (idx_idx, &[mut idx1, mut idx4, mut idx3, mut idx2])
+            in (self.indices.as_chunks().0).into_iter().enumerate()
         {
             idx1+= 1;
             idx2+= 1;
             idx3+= 1;
             idx4+= 1;
+
+            if let Some(meta) = self.meta.get(&idx_idx) {
+                writeln!(formatter, "{meta}")?;
+            }
+
             writeln!(formatter, "f {idx1} {idx2} {idx3} {idx4}")?;
         }
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MeshMeta {
+    pub body_idx: usize,
+    pub disk_info_idx: usize,
+}
+
+impl Display for MeshMeta {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), fmt::Error> {
+        write!(
+            formatter,
+            "g body_idx={} disk_info_idx={}",
+            self.body_idx,
+            self.disk_info_idx,
+        )?;
 
         Ok(())
     }
