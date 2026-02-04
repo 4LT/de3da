@@ -59,7 +59,6 @@ fn main() -> Result<(), AppError> {
 
     walk_body(
         node,
-        model.disk_size(),
         Affine3::IDENTITY,
         &mut mesh,
         None,
@@ -73,7 +72,6 @@ fn main() -> Result<(), AppError> {
 
 fn walk_body(
     node: Option<&types::cooked::BodySegment>,
-    disk_size: usize,
     mut xform: Affine3,
     mesh: &mut Mesh,
     mut prev_disk: Option<Rc<Disk>>,
@@ -109,20 +107,8 @@ fn walk_body(
                 (disk_info.shift, 0f32).into()
             );
 
-            let null_disk: Option<Rc<Vec<_>>> = Some(Rc::new((0..disk_size)
-                .map(|_| (Vec3::default(), -1i32))
-                .collect()));
-
-            let default_disk = || {
-                if segment.left.is_none() && segment.right.is_none() {
-                    null_disk.as_ref()
-                } else {
-                    prev_disk.as_ref()
-                }
-            };
-
             let disk: Option<Vec<_>> = disk_info.disk.as_ref()
-                .or(default_disk())
+                .or(prev_disk.as_ref())
                 .map(
                     |d| d.iter()
                         .map(|&(mut v, _)| {
@@ -147,13 +133,12 @@ fn walk_body(
                 }
 
                 prev_xformd_disk = disk.map(Rc::new);
-                prev_disk = disk_info.disk.clone();
+                prev_disk = disk_info.disk.clone().or(prev_disk);
             } 
         }
 
         walk_body(
             segment.left.as_deref(),
-            disk_size,
             xform,
             mesh,
             prev_disk.clone(),
@@ -161,7 +146,6 @@ fn walk_body(
         );
         walk_body(
             segment.right.as_deref(),
-            disk_size,
             xform,
             mesh,
             prev_disk,

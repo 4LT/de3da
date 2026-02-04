@@ -284,7 +284,7 @@ impl Display for Mesh {
 
         // Flip faces
         for (idx_idx, &[mut idx1, mut idx4, mut idx3, mut idx2])
-            in (self.indices.as_chunks().0).into_iter().enumerate()
+            in (self.indices.as_chunks().0).iter().enumerate()
         {
             idx1+= 1;
             idx2+= 1;
