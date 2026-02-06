@@ -1,1 +1,5 @@
-/target
+# Rust artifacts
+/rust/target
+
+# Output files I leave hanging around
+*.obj
