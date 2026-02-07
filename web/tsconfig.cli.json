@@ -1,9 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "include": [
-      "./src/cli.ts"
+    "./src/cli.ts"
   ],
   "compilerOptions": {
-      "types": ["node"]
+    "outDir": "./dist",
+    "types": ["node"]
   }
 }

@@ -142,6 +142,12 @@ function bodyFromRaw(
     return bodyFromRawRec(0);
 }
 
+export type ModelStats = {
+    diskCt: number,
+    diskInfoCt: number,
+    bodySegmentCt: number,
+};
+
 export class Model {
     private disks: Disk[];
     private diskInfo: CookedDiskInfo[];
@@ -164,6 +170,23 @@ export class Model {
 
     public diskSize(): number {
         return this.disks[0]?.length ?? 0;
+    }
+
+    public getStats(): ModelStats {
+        function bodySegmentCount(segment: CookedBodySegment): number {
+            const leftCt = segment.left == null ? 0 :
+                bodySegmentCount(segment.left);
+            const rightCt = segment.right == null ? 0 :
+                bodySegmentCount(segment.right);
+
+            return leftCt + rightCt + 1;
+        }
+
+        return {
+            diskCt: this.disks.length,
+            diskInfoCt: this.diskInfo.length,
+            bodySegmentCt: bodySegmentCount(this.body),
+        };
     }
 }
 

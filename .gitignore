@@ -1,6 +1,7 @@
 # Node stuff
 /web/node_modules
 /web/dist
+/web/src/**/*.js
 
 # Rust artifacts
 /rust/target
