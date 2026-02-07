@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+      "./src/cli.ts"
+  ],
+  "compilerOptions": {
+      "types": ["node"]
+  }
+}
