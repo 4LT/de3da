@@ -29,6 +29,9 @@ export function parseModel(bytes: Uint8Array): Model {
         --idx;
     }
 
+    // Skip a few records to prevent parsing non-disk records as disks
+    idx+= 6;
+
     const [disks, bodyIdx] = parseDisks(parsedLines, idx);
     const [body, diskInfoIdx] = parseBody(parsedLines, bodyIdx);
     const diskInfo = parseDiskInfo(parsedLines, diskInfoIdx);
@@ -40,8 +43,18 @@ export function parseModel(bytes: Uint8Array): Model {
     });
 }
 
+export class ParseError extends Error {
+    public line: number;
+
+    constructor(reason: string, index: number) {
+        const line = index + 1;
+        super(`Line ${line}: ${reason}`);
+        this.line = line;
+    }
+}
+
 function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
-    const parseError = new Error("Failed to parse disks");
+    const errorMsg = "Failed to parse disks";
 
     const parseVert = (idx: number): [DiskVertex, number] => {
         let x: number, y: number, z: number, int: number;
@@ -52,7 +65,7 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
             x = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -60,7 +73,7 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
             y = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -68,7 +81,7 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
             z = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -76,7 +89,7 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
             int = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         return [[new Vec3(x, y, z), int], idx];
@@ -96,15 +109,15 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
             vertCt = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         if (vertCt < 1) {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         if (expectedSz != null && expectedSz !== vertCt) {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         for (let _i = 0; _i < vertCt; ++_i) {
@@ -160,7 +173,7 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
     }
 
     if (disksBroken) {
-        throw parseError;
+        throw new ParseError(errorMsg, idx);
     } else {
         return [disks, idx];
     }
@@ -168,7 +181,7 @@ function parseDisks(lines: LineItem[], idx: number): [Disk[], number] {
 
 function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
     const body = [];
-    const parseError = new Error("Failed to parse body");
+    const errorMsg = "Failed to parse body";
 
     let segmentCt: number;
     let item: LineItem | undefined;
@@ -180,12 +193,12 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
         segmentCt = item.value;
         ++idx;
 
-        if (segmentCt < 0) {
+        while (segmentCt < 0) {
             item = lines[idx];
             if (item?.kind === "float") {
                 ++idx;
             } else {
-                throw parseError;
+                throw new ParseError(errorMsg, idx);
             }
 
             item = lines[idx];
@@ -193,11 +206,11 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
                 segmentCt = item.value;
                 ++idx;
             } else {
-                throw parseError;
+                throw new ParseError(errorMsg, idx);
             }
         }
     } else {
-        throw parseError;
+        throw new ParseError(errorMsg, idx);
     }
 
     for (let _i = 0; _i < segmentCt; ++_i) {
@@ -206,7 +219,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
             diskInfoIdx = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -214,7 +227,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
             action = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -222,7 +235,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
             value = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -230,7 +243,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
             color = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -238,7 +251,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
             left = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -246,7 +259,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
             right = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         body.push({
@@ -264,7 +277,7 @@ function parseBody(lines: LineItem[], idx: number): [RawBodySegment[], number] {
 
 function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
     const diskInfo = [];
-    const parseError = new Error("Failed to parse disk info");
+    const errorMsg = "Failed to parse disk info";
 
     let diskIdx: number, id: number, flags: number, infoCt: number;
     let item: LineItem | undefined;
@@ -274,7 +287,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
         infoCt = item.value;
         ++idx;
     } else {
-        throw parseError;
+        throw new ParseError(errorMsg, idx);
     }
 
     for (let _i = 0; _i < infoCt; ++_i) {
@@ -288,7 +301,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             shift[0] = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -296,7 +309,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             shift[1] = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -304,7 +317,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             scale[0] = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -312,7 +325,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             scale[1] = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -320,7 +333,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             diskIdx = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -328,7 +341,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             id = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         item = lines[idx];
@@ -336,7 +349,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
             flags = item.value;
             ++idx;
         } else {
-            throw parseError;
+            throw new ParseError(errorMsg, idx);
         }
 
         const indices: [0, 1, 2, 3] = [0, 1, 2, 3];
@@ -347,7 +360,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
                 arr1[arrIdx] = item.value;
                 ++idx;
             } else {
-                throw parseError;
+                throw new ParseError(errorMsg, idx);
             }
 
             item = lines[idx];
@@ -355,7 +368,7 @@ function parseDiskInfo(lines: LineItem[], idx: number): RawDiskInfo[] {
                 arr2[arrIdx] = item.value;
                 ++idx;
             } else {
-                throw parseError;
+                throw new ParseError(errorMsg, idx);
             }
         }
 
