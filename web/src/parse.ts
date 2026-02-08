@@ -405,7 +405,7 @@ function parseLines(bytes: Uint8Array): LineItem[] {
 
     // Read bytes into line items
     for (let byte; byte = read(), byte != null; ) {
-        if (lineBuffer.length >= maxBufSz || byte > ASCII.MAX) {
+        if (lineBuffer.length >= maxBufSz || byte > ASCII.MAX || byte === 0) {
             items.push({
                 kind: "binary",
                 value: bytes.subarray(itemStart)
