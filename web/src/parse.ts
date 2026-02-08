@@ -12,7 +12,7 @@ import { Vec3 } from "./math.ts";
 const ASCII = {
     CARRIAGE_RETURN: "\r".charCodeAt(0),
     LINE_FEED: "\n".charCodeAt(0),
-    MAX: 255,
+    MAX: 127,
 };
 
 Object.freeze(ASCII);
